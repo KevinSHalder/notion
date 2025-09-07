@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Notion‑Style Site + Reminders</title>
+  <meta name="description" content="A clean Notion‑like website with an interactive mouse cursor and a simple reminders app. Single HTML file, ideal for VS Code." />
+  <style>
+    /* ----------- Base / Theme ----------- */
+    :root{
+      --bg:#ffffff; --text:#1f2328; --muted:#6e7781; --card:#f6f8fa; --accent:#0ea5e9; --border:#e6e8eb;
+      --shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 12px rgba(16,24,40,.06);
+      --radius:14px; --radius-sm:10px; --radius-lg:22px;
+    }
+    .dark{
+      --bg:#0b0e11; --text:#e6edf3; --muted:#9da7b1; --card:#11161b; --accent:#38bdf8; --border:#1f2937;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.45);
+    }
+    html,body{height:100%}
+    *{box-sizing:border-box}
+    body{
+      margin:0; font: 16px/1.6 ui-sans-serif, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      color:var(--text); background:var(--bg); letter-spacing:.1px; -webkit-font-smoothing:antialiased;
+    }
+    a{color:inherit; text-decoration:none; position:relative}
+    a::after{content:""; position:absolute; left:0; bottom:-2px; width:0; height:2px; background:var(--text); transition:width .25s ease}
+    a:hover::after{width:100%}
+
+    /* ----------- Layout (Notion‑like) ----------- */
+    .app{display:grid; grid-template-columns:260px 1fr; min-height:100vh}
+    .sidebar{border-right:1px solid var(--border); padding:18px; position:sticky; top:0; height:100vh; overflow:auto}
+    .brand{display:flex; align-items:center; gap:10px; font-weight:700;}
+    .logo{width:28px; height:28px; display:grid; place-items:center; border:2px solid var(--text); border-radius:6px; font-weight:900}
+    .nav{margin-top:18px; display:flex; flex-direction:column; gap:6px}
+    .nav a{padding:8px 10px; border-radius:8px; color:var(--muted)}
+    .nav a.active, .nav a:hover{background:var(--card); color:var(--text)}
+
+    .main{padding:28px clamp(16px,4vw,48px)}
+
+    .topbar{display:flex; align-items:center; gap:12px; justify-content:space-between; margin-bottom:18px}
+    .search{flex:1; position:relative}
+    .search input{width:100%; padding:10px 36px 10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--card); color:var(--text)}
+    .kbd{position:absolute; right:8px; top:50%; transform:translateY(-50%); font-size:12px; color:var(--muted)}
+    .btn{border:1px solid var(--border); background:var(--card); padding:8px 12px; border-radius:10px; cursor:pointer; color:var(--text)}
+    .btn:hover{filter:brightness(1.02)}
+
+    /* ----------- Blocks ----------- */
+    .hero{display:grid; gap:10px; margin:8px 0 18px}
+    .h1{font-size:clamp(28px,4vw,42px); font-weight:800; letter-spacing:-.02em}
+    .muted{color:var(--muted)}
+
+    .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px}
+    .card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow)}
+    .card h3{margin:0 0 8px; font-size:18px}
+
+    .callout{display:flex; gap:12px; align-items:flex-start; background:linear-gradient(180deg, rgba(14,165,233,.08), transparent 55%); border:1px dashed var(--border); border-radius:var(--radius-sm); padding:14px}
+
+    .toggle{margin-top:8px}
+    details{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px}
+    summary{cursor:pointer; font-weight:600}
+
+    /* ----------- Reminders ----------- */
+    .reminder-form{display:grid; grid-template-columns:1.2fr .9fr .6fr auto; gap:8px; margin:10px 0}
+    .reminder-form input, .reminder-form select{border:1px solid var(--border); background:var(--bg); padding:10px; border-radius:10px; color:var(--text)}
+    .reminders-empty{padding:10px; border:1px dashed var(--border); border-radius:12px; color:var(--muted); text-align:center}
+    .reminder-item{display:grid; grid-template-columns:auto 1fr .9fr .6fr auto; gap:10px; align-items:center; padding:10px; border-bottom:1px solid var(--border)}
+    .reminder-item:last-child{border-bottom:none}
+    .pill{font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); background:var(--bg)}
+    .pill.high{border-color:#ef4444}
+    .pill.medium{border-color:#f59e0b}
+    .pill.low{border-color:#10b981}
+    .reminder-item.completed .title{opacity:.5; text-decoration:line-through}
+
+    .danger{border-color:#ef4444; color:#ef4444}
+
+    /* ----------- Notes (contenteditable) ----------- */
+    .notes{min-height:140px; border:1px dashed var(--border); border-radius:12px; padding:12px; background:var(--bg)}
+    .notes:focus{outline:2px solid var(--accent)}
+
+    /* ----------- Custom Cursor ----------- */
+    .cursor-dot, .cursor-ring{position:fixed; top:0; left:0; pointer-events:none; z-index:9999; mix-blend-mode:difference}
+    .cursor-dot{width:6px; height:6px; border-radius:50%; background:#fff; opacity:.9; transform:translate(-50%, -50%)}
+    .cursor-ring{width:28px; height:28px; border-radius:50%; border:2px solid #fff; opacity:.75; transform:translate(-50%, -50%)}
+    .magnet:hover{transform:translateY(-1px)}
+
+    /* ----------- Footer ----------- */
+    footer{margin-top:24px; color:var(--muted); font-size:14px}
+
+    @media (max-width:880px){
+      .app{grid-template-columns:1fr}
+      .sidebar{position:relative; height:auto}
+    }
+  </style>
+</head>
+<body>
+  <!-- Custom cursor elements -->
+  <div class="cursor-dot" id="cursorDot"></div>
+  <div class="cursor-ring" id="cursorRing"></div>
+
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">N</div>
+        <div>Notion‑Style</div>
+      </div>
+      <nav class="nav" aria-label="Primary">
+        <a class="active magnet" href="#home">🏠 Home</a>
+        <a class="magnet" href="#reminders">⏰ Reminders</a>
+        <a class="magnet" href="#notes">📝 Notes</a>
+        <a class="magnet" href="#faq">❓ FAQ</a>
+      </nav>
+      <div style="margin-top:16px; display:flex; gap:8px; align-items:center;">
+        <button id="themeBtn" class="btn magnet" title="Toggle theme (Light/Dark)">🌗 Theme</button>
+        <button id="notifyBtn" class="btn magnet" title="Enable desktop reminders">🔔 Enable Alerts</button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+      <div class="topbar">
+        <div class="search">
+          <input id="searchInput" placeholder="Quick search (Ctrl /)" aria-label="Search" />
+          <span class="kbd">Ctrl /</span>
+        </div>
+        <a class="btn magnet" href="#reminders">+ New Reminder</a>
+      </div>
+
+      <section id="home" class="hero">
+        <div class="h1">A clean, Notion‑like starter with a playful cursor ✨</div>
+        <div class="muted">Single‑file HTML that you can open in VS Code and edit freely. Includes a reminders widget (with localStorage) and quick notes.</div>
+        <div class="callout" role="note">
+          <div>💡</div>
+          <div><strong>Tip:</strong> Press <kbd>N</kbd> to jump to the New Reminder form; press <kbd>/</kbd> to focus search.</div>
+        </div>
+      </section>
+
+      <section id="reminders" class="card" aria-labelledby="rem-title">
+        <h3 id="rem-title">⏰ Reminders</h3>
+        <form id="reminderForm" class="reminder-form" autocomplete="off">
+          <input id="remTitle" required placeholder="Reminder title (e.g., Call client)" />
+          <input id="remDate" type="datetime-local" />
+          <select id="remPriority">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+          <button class="btn magnet" type="submit">Add</button>
+        </form>
+        <div id="remList"></div>
+        <div id="remEmpty" class="reminders-empty" hidden>Nothing here yet — add your first reminder above.</div>
+      </section>
+
+      <div class="grid" style="margin-top:18px">
+        <section id="notes" class="card" aria-labelledby="notes-title">
+          <h3 id="notes-title">📝 Quick Notes</h3>
+          <div id="notesBox" class="notes" contenteditable="true" spellcheck="true" aria-multiline="true" role="textbox">Write anything… (auto‑saves)</div>
+        </section>
+
+        <section id="faq" class="card" aria-labelledby="faq-title">
+          <h3 id="faq-title">❓ FAQ</h3>
+          <details class="toggle"><summary>How do reminders work?</summary>
+            <div class="muted">They are stored in your browser (localStorage). If you enable alerts, you'll get a desktop notification at the due time while this page is open.</div>
+          </details>
+          <details class="toggle"><summary>Can I use this in VS Code?</summary>
+            <div class="muted">Yes. Save as <code>index.html</code> and open with Live Server or any browser.</div>
+          </details>
+          <details class="toggle"><summary>Dark mode?</summary>
+            <div class="muted">Click <em>Theme</em> in the sidebar to toggle. Your choice is saved.</div>
+          </details>
+        </section>
+      </div>
+
+      <footer>
+        Built with ❤️ — no frameworks, single file. Customize freely.
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    // ---------- Utilities ----------
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+    // ---------- Theme Toggle (persist) ----------
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedTheme = localStorage.getItem('theme');
+    if ((savedTheme === 'dark') || (!savedTheme && prefersDark)) document.documentElement.classList.add('dark');
+    $('#themeBtn').addEventListener('click',()=>{
+      document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    });
+
+    // ---------- Search focus shortcut ----------
+    const searchInput = $('#searchInput');
+    window.addEventListener('keydown', (e)=>{
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') { e.preventDefault(); searchInput.focus(); }
+      if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'n') { e.preventDefault(); $('#remTitle').focus(); location.hash = '#reminders'; }
+    });
+
+    // ---------- Notes (auto-save) ----------
+    const notesBox = $('#notesBox');
+    notesBox.innerHTML = localStorage.getItem('notes') || 'Write anything… (auto‑saves)';
+    notesBox.addEventListener('input', ()=> localStorage.setItem('notes', notesBox.innerHTML));
+
+    // ---------- Reminders ----------
+    const remKey = 'reminders.v1';
+    const remList = $('#remList');
+    const remEmpty = $('#remEmpty');
+
+    let reminders = [];
+    try { reminders = JSON.parse(localStorage.getItem(remKey)) || []; } catch { reminders = []; }
+
+    function saveReminders(){ localStorage.setItem(remKey, JSON.stringify(reminders)); renderReminders(); }
+
+    function renderReminders(){
+      remList.innerHTML='';
+      if (!reminders.length){ remEmpty.hidden = false; return; } else remEmpty.hidden = true;
+      // sort: incomplete first, then by date
+      reminders.sort((a,b)=> (a.completed - b.completed) || (new Date(a.due||0) - new Date(b.due||0)) );
+      for(const r of reminders){
+        const row = document.createElement('div'); row.className = 'reminder-item' + (r.completed ? ' completed' : '');
+        row.innerHTML = `
+          <input type="checkbox" ${r.completed?'checked':''} aria-label="Complete" />
+          <div class="title">${escapeHtml(r.title)}</div>
+          <div class="muted">${r.due ? new Date(r.due).toLocaleString() : 'No date'}</div>
+          <span class="pill ${r.priority}">${r.priority}</span>
+          <button class="btn danger" title="Delete">✕</button>
+        `;
+        const [chk, titleEl, , , delBtn] = row.children;
+        chk.addEventListener('change', ()=>{ r.completed = chk.checked; saveReminders(); });
+        delBtn.addEventListener('click', ()=>{ reminders = reminders.filter(x=>x.id!==r.id); saveReminders(); });
+        titleEl.addEventListener('dblclick', ()=>{
+          const nv = prompt('Edit title', r.title);
+          if (nv !== null){ r.title = nv.trim() || r.title; saveReminders(); }
+        });
+        remList.appendChild(row);
+      }
+    }
+
+    function escapeHtml(s){ return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m])); }
+
+    // Add new reminder
+    $('#reminderForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const title = $('#remTitle').value.trim();
+      if (!title) return;
+      const due = $('#remDate').value ? new Date($('#remDate').value).toISOString() : '';
+      const priority = $('#remPriority').value;
+      const r = { id: crypto.randomUUID(), title, due, priority, completed:false };
+      reminders.push(r); saveReminders(); e.target.reset(); $('#remTitle').focus();
+      scheduleNotification(r);
+    });
+
+    renderReminders();
+
+    // ---------- Notifications ----------
+    const notifyBtn = $('#notifyBtn');
+    notifyBtn.addEventListener('click', async()=>{
+      try{
+        const p = await Notification.requestPermission();
+        alert(p === 'granted' ? 'Desktop alerts enabled!' : 'Permission was not granted.');
+      }catch{ alert('Notifications are not supported in this browser.'); }
+    });
+
+    function scheduleNotification(r){
+      if (!('Notification' in window) || Notification.permission !== 'granted' || !r.due) return;
+      const ms = new Date(r.due) - new Date();
+      if (ms <= 0) return new Notification('Reminder due', { body: r.title });
+      setTimeout(()=> new Notification('Reminder due', { body: r.title }), Math.min(ms, 2**31-1)); // cap to max setTimeout
+    }
+    // schedule existing ones on load
+    reminders.forEach(scheduleNotification);
+
+    // ---------- Simple search (filter sections) ----------
+    searchInput.addEventListener('input', ()=>{
+      const q = searchInput.value.toLowerCase();
+      $$('.card, .hero').forEach(sec=>{
+        const hit = sec.textContent.toLowerCase().includes(q);
+        sec.style.display = hit ? '' : 'none';
+      });
+    });
+
+    // ---------- Smooth scroll for sidebar nav ----------
+    $$('.nav a').forEach(a=> a.addEventListener('click', (e)=>{
+      const id = a.getAttribute('href');
+      if (id.startsWith('#')){ e.preventDefault(); document.querySelector(id)?.scrollIntoView({behavior:'smooth', block:'start'}); }
+    }));
+
+    // ---------- Interactive Cursor ----------
+    const dot = $('#cursorDot');
+    const ring = $('#cursorRing');
+    let mx=0,my=0, rx=0, ry=0;
+    window.addEventListener('mousemove', (e)=>{ mx=e.clientX; my=e.clientY; dot.style.transform=`translate(${mx-0.5}px, ${my-0.5}px)`; });
+    (function animate(){
+      rx += (mx - rx) * 0.15; ry += (my - ry) * 0.15;
+      ring.style.transform = `translate(${rx}px, ${ry}px)`; requestAnimationFrame(animate);
+    })();
+    // Scale ring on interactive elements
+    ['a','button','input','select','summary','[contenteditable]'].forEach(sel=>{
+      document.addEventListener('mouseover', (e)=>{ if (e.target.closest(sel)) ring.style.width = ring.style.height = '38px'; });
+      document.addEventListener('mouseout', (e)=>{ if (e.target.closest(sel)) ring.style.width = ring.style.height = '28px'; });
+    });
+  </script>
+</body>
+</html>
